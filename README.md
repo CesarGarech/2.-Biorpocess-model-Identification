@@ -1,2 +1,2 @@
-# 2.-Biorpocess-model-Identification
+# 2.-Bioprocess-model-Identification
 Repositorio creado para el semillero InnovacodingUN
