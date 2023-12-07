@@ -140,6 +140,10 @@ for k=1:1
     end
 end
 
+num = H.Numerator;
+den  = H.Denominator;
+sistema = tf(num, den);
+
 figure(1);bode(sistema); 
 figure(2);nyquist(sistema);
 figure(3);pole(sistema);

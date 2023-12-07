@@ -1,0 +1,148 @@
+
+clc
+clear
+close all
+
+% u1 = F_alim;
+% y1 = S_estim;
+% Ts = t(2) - t(1);
+
+% data_g11 = iddata(y1,u1,Ts);
+% g11 = tfest(
+
+yout=1;
+yin = 1;
+
+
+MV = char('F_{alim}');
+PV = char('Substrate');
+
+
+graficar=1; %Interruptor para graficar las FT identificadas
+            % (0 - No grafica;  1 - Grafica)
+%% Variaveis manipuladas e perturbacao           
+
+in(1:1)=1;
+tsim=50; %Tempo de simulação em horas
+Tm=0.1;  %Periodo de Amostragem
+
+ordem=1;
+
+
+%FitMat=zeros(yout,3); %Matriz que almacena el nivel de aproximacion del modelo
+gm=5; %Ganho do FIT com relação ao modelo de um ordem inferior
+
+Tol=95; %Porcentagem de FIT Aceitável
+aux = 0; %estimativa do atraso com função tfest
+% uin = [0.1317 13.3850];
+uin = 0;
+x0 = [0.01; 20; 0; 1; 0.83; 0.8; 10];
+Ts = 0.1;
+
+for k=1:1
+    if(graficar==1 && k>1) %Pausa para ver as respostas ante uma perturbação
+        pause(5);
+        close all %Depois fecha os graficos (comentar se não deseja fechar)
+    end
+    in(k)=0;
+    sim('Bio_fedbatch_PP2');
+    in(1:1)=1;
+    
+    for j=yin:yout
+        %Corta e translada os dados do degrau desejado
+        yr = S(:,j) - S(1,j);
+        ur = u(:,k)-uin(k);
+        tr = t - t(1);
+        d2 = iddata(yr,ur,Tm);
+        G = tfest(d2,ordem);
+%         if abs(pole(G)) < 1e-5
+%             G = procest(d2,'P0ID');
+%         end
+        fit1=G.Report.Fit.FitPercent;
+        FIT=fit1;
+        if fit1<Tol
+            ordem=ordem+1
+            G = tfest(d2,ordem);
+             
+%             %Para evitar modelos oscilatorios
+%             if any(abs(real(pole(G)))< abs(0.001))
+%                 G = procest(d2,'P3DZ');
+%                 aux = 1; %Estimar o atraso com procest
+%             end
+            
+            fit2=G.Report.Fit.FitPercent;
+            if fit2<fit1+gm
+                ordem=ordem-1
+                G = tfest(d2,ordem);
+                aux = 0;
+            else
+                FIT=G.Report.Fit.FitPercent;
+            end
+            %Se o FIT é menor a 70, (para o disturbio, estimamos um ordem
+            %3)
+            if FIT<Tol
+                G = tfest(d2,3);
+                aux = 0;
+                FIT=G.Report.Fit.FitPercent;
+                %Caso tenha polos proximos ao eixo imaginario volte o
+                %modelo
+                if any(abs(real(pole(G)))< abs(0.001))
+                    G = tfest(d2,ordem);
+                    aux = 0;
+                    FIT=G.Report.Fit.FitPercent;
+                end
+            end
+        end
+        
+        
+        if graficar==1
+            s=lsim(G,ur,tr);
+            figure;
+            subplot(2,1,1)
+            plot(tr,yr,tr,s);
+            legend('Plant',strcat('G(',num2str(FIT),'%)'),'Location','best')
+            title(strcat('PV',num2str(j),': ', PV(j,:),' - MV',num2str(k),': ', MV(k,:)))
+            ylabel(PV(j,:))
+            xlabel('time (s)')
+            subplot(2,1,2)
+            plot(tr,ur);
+            ylabel(MV(k,:))
+            xlabel('time (s)')
+%             print(strcat('Modelos\G',num2str(j),num2str(k),'.png'),'-dpng','-r0')
+        end
+        
+        %Salva a FT numa matriz
+        [n,d]=tfdata(G);
+        H(j-yin+1,k)=tf(n,d);
+        if aux == 0
+            H(j-yin+1,k).iodelay=G.IODelay;
+        else
+            H(j-yin+1,k).iodelay=G.Td;
+            aux = 0;
+        end
+        if abs(dcgain(H(j-yin+1,k)))<1e-5
+            H(j-yin+1,k)=0;
+        end
+        if FIT<70
+            RTF(j-yin+1,k)=1;
+        else
+            RTF(j-yin+1,k)=0;
+        end
+        if abs(dcgain(H(j-yin+1,k)))<1e-5 || FIT<50
+            H(j-yin+1,k)=0;
+            FIT = 0;
+            ordem=0;
+        end
+        FitMat(j-yin+1,k)=FIT;
+        Ord(j-yin+1,k)=ordem;
+        ordem=1;
+        
+    end
+end
+
+figure(1);bode(sistema); 
+figure(2);nyquist(sistema);
+figure(3);pole(sistema);
+figure(3);pole(sistema);pzmap(sistema);
+
+save('Lineal_Model','H','FitMat','Ord')
