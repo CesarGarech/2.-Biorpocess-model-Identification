@@ -144,9 +144,9 @@ num = H.Numerator;
 den  = H.Denominator;
 sistema = tf(num, den);
 
-figure(1);bode(sistema); 
-figure(2);nyquist(sistema);
-figure(3);pole(sistema);
-figure(3);pole(sistema);pzmap(sistema);
+figure(2);bode(sistema); 
+figure(3);nyquist(sistema);
+% figure(4);pole(sistema);
+figure(5);pole(sistema);pzmap(sistema);
 
 save('Lineal_Model','H','FitMat','Ord')
