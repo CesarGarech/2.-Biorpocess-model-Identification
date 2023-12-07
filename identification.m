@@ -140,5 +140,9 @@ for k=1:1
     end
 end
 
+figure(1);bode(sistema); 
+figure(2);nyquist(sistema);
+figure(3);pole(sistema);
+figure(3);pole(sistema);pzmap(sistema);
 
 save('Lineal_Model','H','FitMat','Ord')
